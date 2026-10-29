@@ -2,6 +2,10 @@
 
 React Three Fiber + shadcn/ui ile 3B robot kol laboratuvarı: DH tablosunu değiştir, her eklemin koordinat eksenlerini ve θ, d, a, α değerlerini sahnede gör, endüstriyel robotu ileri ve ters kinematikle oynat.
 
+## ▶ Demo
+
+**https://billylz.github.io/r2f-robotarm/**
+
 <p>
   <img src="docs/ik.png" alt="UR5, ters kinematik hedefi" width="68%" />
   <img src="docs/mobile.png" alt="Telefon görünümü" width="28%" />

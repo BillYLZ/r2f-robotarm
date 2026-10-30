@@ -1,18 +1,42 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PARAM_COLORS } from './Robot.jsx'
 
-/** Number field that keeps what the user types ("-", "0.") and commits only valid numbers. */
-export function NumField({ value, onCommit, className = '', ...props }) {
+/**
+ * Number field that keeps what the user types ("-", "0.") and commits only valid numbers.
+ * Mouse wheel over the field steps the value by `step` (Shift: ÷10, Ctrl/Alt: ×10).
+ */
+export function NumField({ value, onCommit, step = 0.01, className = '', ...props }) {
   const [text, setText] = useState(String(value))
+  const input = useRef(null)
+  const latest = useRef({ value, onCommit, step })
+  latest.current = { value, onCommit, step }
   useEffect(() => {
     if (Number(text) !== value) setText(String(value))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
+  useEffect(() => {
+    const el = input.current
+    // Native listener: React's onWheel is passive and cannot stop the page from scrolling.
+    const wheel = (e) => {
+      if (el.disabled || e.deltaY === 0) return
+      e.preventDefault()
+      const { value, onCommit, step } = latest.current
+      const k = e.shiftKey ? 0.1 : e.ctrlKey || e.altKey ? 10 : 1
+      const inc = step * k
+      // Keep the value's own digits (0.455 → 0.465), only drop floating point noise.
+      const next = Number((value + (e.deltaY < 0 ? inc : -inc)).toFixed(6))
+      setText(String(next))
+      onCommit(next)
+    }
+    el.addEventListener('wheel', wheel, { passive: false })
+    return () => el.removeEventListener('wheel', wheel)
+  }, [])
   return (
     <Input
+      ref={input}
       inputMode="decimal"
       value={text}
       onChange={(e) => {
@@ -25,6 +49,7 @@ export function NumField({ value, onCommit, className = '', ...props }) {
       onFocus={(e) => e.target.select()}
       className={`h-7 px-1.5 text-right font-mono text-xs tabular-nums md:text-xs ${className}`}
       {...props}
+      title={`${props.title ? `${props.title} · ` : ''}Tekerlek ±${step} (Shift ÷10, Ctrl ×10)`}
     />
   )
 }
@@ -77,6 +102,7 @@ export default function DHTable({ rows, convention, selected, onSelect, onChange
             return (
               <NumField
                 key={key}
+                step={key === 'theta' || key === 'alpha' ? 1 : 0.01}
                 value={row[key]}
                 onCommit={(v) => onChange(i, { [key]: v })}
                 aria-label={`${head[k][0]} satır ${i + 1}`}

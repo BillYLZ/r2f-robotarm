@@ -58,13 +58,13 @@ function JointSliders({ rows, q, selected, onSelect, onQ, onLimits }) {
                 q{i + 1} <span className="text-[10px]">{deg ? 'θ' : 'd'}</span>
               </span>
               <Slider min={row.min} max={row.max} step={deg ? 0.5 : 0.001} value={[q[i]]} onValueChange={([v]) => onQ(i, v)} aria-label={`Eklem ${i + 1}`} />
-              <NumField value={deg ? Math.round(q[i] * 10) / 10 : Math.round(q[i] * 1000) / 1000} onCommit={(v) => onQ(i, clampJoint(row, v))} aria-label={`Eklem ${i + 1} değeri`} />
+              <NumField value={deg ? Math.round(q[i] * 10) / 10 : Math.round(q[i] * 1000) / 1000} onCommit={(v) => onQ(i, clampJoint(row, v))} step={deg ? 1 : 0.01} aria-label={`Eklem ${i + 1} değeri`} />
             </div>
             {selected === i && (
               <div className="grid grid-cols-[2.6rem_1fr_1fr] items-center gap-2 text-[11px] text-muted-foreground">
                 <span>limit</span>
-                <NumField value={row.min} onCommit={(v) => v < row.max && onLimits(i, { min: v })} aria-label="Alt limit" />
-                <NumField value={row.max} onCommit={(v) => v > row.min && onLimits(i, { max: v })} aria-label="Üst limit" />
+                <NumField value={row.min} step={deg ? 1 : 0.01} onCommit={(v) => v < row.max && onLimits(i, { min: v })} aria-label="Alt limit" />
+                <NumField value={row.max} step={deg ? 1 : 0.01} onCommit={(v) => v > row.min && onLimits(i, { max: v })} aria-label="Üst limit" />
               </div>
             )}
           </div>

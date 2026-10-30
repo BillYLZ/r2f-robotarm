@@ -5,13 +5,14 @@ import * as THREE from 'three'
 import { AXIS_COLORS, Axes, Chip, DHOverlay, InFrame, Robot, ToolMesh, toMatrix4 } from './Robot.jsx'
 import { column, multiply, position } from '@/kinematics/mat4.js'
 import { toolMatrix } from '@/kinematics/pivot.js'
+import Stage from './Stage.jsx'
 import { useSceneTheme } from '@/theme.js'
 
 export const PANEL = 432 // desktop side panel width incl. margin
 const DURATION = 0.6
 
 const VIEWS = {
-  persp: (d) => new THREE.Vector3(d * 0.75, d * 0.55, d * 0.85),
+  persp: (d) => new THREE.Vector3(d * 0.78, d * 0.36, d * 0.9), // low enough to see the horizon
   front: (d) => new THREE.Vector3(0, d * 0.35, d * 1.1),
   side: (d) => new THREE.Vector3(d * 1.1, d * 0.35, 0),
   top: (d) => new THREE.Vector3(0, d * 1.15, 0.001),
@@ -237,23 +238,14 @@ export default function Scene({ fk, q, rows, convention, base, selected, show, v
   const t = useSceneTheme()
   return (
     <>
-      <color attach="background" args={[t.background]} />
-      <fog attach="fog" args={[t.background, 5, 14]} />
+      <color attach="background" args={[t.horizon]} />
       <hemisphereLight args={t.hemi} />
-      <directionalLight position={[3, 5, 2.5]} intensity={2.4} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-2} shadow-camera-right={2} shadow-camera-top={2} shadow-camera-bottom={-2} />
+      <directionalLight position={[3, 5, 2.5]} intensity={2.4} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-2} shadow-camera-right={2} shadow-camera-top={2} shadow-camera-bottom={-2} shadow-bias={-0.0004} />
       <directionalLight position={[-3, 2, -2]} intensity={0.7} color="#9cc4ff" />
       <pointLight position={[0, 2.5, -2.5]} intensity={6} color="#ff8a1f" distance={6} />
       <Studio background={t.studio} />
       <ContactShadows position={[0, 0.001, 0]} scale={4} resolution={1024} blur={2.4} opacity={t.contact} far={1.5} frames={Infinity} />
-
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
-        <planeGeometry args={[30, 30]} />
-        <shadowMaterial opacity={t.shadow} />
-      </mesh>
-      <Grid infiniteGrid cellSize={0.05} cellThickness={0.5} sectionSize={0.5} sectionThickness={0.9} cellColor={t.cell} sectionColor={t.section} fadeDistance={10} fadeStrength={2} />
-      {/* World axes on the floor: DH x (red) and y (green); three.js z = -DH y */}
-      <Line points={[[0, 0.0005, 0], [0.6, 0.0005, 0]]} color={AXIS_COLORS[0]} lineWidth={1} transparent opacity={t.floorAxes} />
-      <Line points={[[0, 0.0005, 0], [0, 0.0005, -0.6]]} color={AXIS_COLORS[1]} lineWidth={1} transparent opacity={t.floorAxes} />
+      <Stage reach={reach} />
 
       <CameraRig view={view} resetKey={resetKey} reach={reach} height={base + reach * 0.35} />
 

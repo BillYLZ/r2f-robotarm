@@ -79,6 +79,20 @@ function JointSliders({ rows, q, selected, onSelect, onQ, onLimits }) {
   )
 }
 
+/** Light / dark selector. */
+function ThemeSwitch({ theme, onChange, className = '' }) {
+  return (
+    <ToggleGroup type="single" variant="outline" size="sm" value={theme} onValueChange={(v) => v && onChange(v)} className={className} aria-label="Tema">
+      <ToggleGroupItem value="light" className="gap-1 px-2.5 text-xs" aria-label="Açık tema">
+        <Sun /> Açık
+      </ToggleGroupItem>
+      <ToggleGroupItem value="dark" className="gap-1 px-2.5 text-xs" aria-label="Koyu tema">
+        <Moon /> Koyu
+      </ToggleGroupItem>
+    </ToggleGroup>
+  )
+}
+
 function PosePanel({ T, w, wRef, ikStatus, ikOn }) {
   const [open, setOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 768)
   const p = position(T)
@@ -152,11 +166,11 @@ export default function App() {
   const [cloud, setCloud] = useState(null)
   const [panelOpen, setPanelOpen] = useState(true)
   const [theme, setTheme] = useState(readTheme)
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark'
+  const changeTheme = (next) => {
     applyTheme(next)
     setTheme(next)
   }
+  const toggleTheme = () => changeTheme(theme === 'dark' ? 'light' : 'dark')
   const [shared, setShared] = useState(false)
   const tween = useRef(null)
   const [tool, setTool] = useState({ on: true, length: 0.15, diameter: 0.04, tilt: 20, spin: 90, speed: 1 })
@@ -434,6 +448,7 @@ export default function App() {
               <span className="font-mono text-sm tracking-[0.12em] uppercase">Robot Kol // DH</span>
               <span className="font-mono text-[10px] font-normal tracking-wider text-muted-foreground">KİNEMATİK LAB · v0.2</span>
             </span>
+            <ThemeSwitch theme={theme} onChange={changeTheme} className="ml-auto" />
           </CardTitle>
           <CardDescription className="text-xs">DH tablosunu değiştir, eksenleri sürükle, kolu 3B izle.</CardDescription>
         </CardHeader>
@@ -579,6 +594,8 @@ export default function App() {
                 </Button>
               </div>
               <div className="flex flex-col gap-2">
+                <span className="section-label">Tema</span>
+                <ThemeSwitch theme={theme} onChange={changeTheme} className="w-full" />
                 <span className="section-label">Kamera</span>
                 <ToggleGroup
                   type="single"

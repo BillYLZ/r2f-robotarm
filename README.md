@@ -11,7 +11,11 @@ React Three Fiber + shadcn/ui ile 3B robot kol laboratuvarı: DH tablosunu deği
   <img src="docs/mobile.png" alt="Telefon görünümü" width="28%" />
 </p>
 
+<img src="docs/kuka.png" alt="KUKA KR 6 R900 sixx, gerçek 3B model" width="60%" />
+
 ## Özellikler
+
+- **Gerçek 3B robot**: KUKA KR 6 R900 sixx (KR AGILUS) üreticinin CAD tabanlı görsel meshleriyle çizilir; boya clearcoat'lu fiziksel malzeme, ince portakal kabuğu dokusu, stüdyo ışıklı yansımalar ve yumuşak temas gölgesi. DH tablosu bu robotun URDF eksenlerine birebir oturtuldu, eksen sürükleme ve IK model üzerinde de çalışır. Görünüm → **3B model** ile şematik çizime geçilebilir.
 
 - **DH tablosu düzenleyici**: satır ekle/sil, her eklem döner (**R**) ya da prizmatik (**P**), θ d a α hücreleri canlı.
 - **Standart / Modified (Craig) DH** geçişi:
@@ -24,7 +28,7 @@ React Three Fiber + shadcn/ui ile 3B robot kol laboratuvarı: DH tablosunu deği
 - **Ters kinematik**: kırmızı hedefi sürükle (taşı / döndür), kol Damped Least Squares ile takip eder. 6 eksende hem konum hem yönelim, daha azında yalnız konum.
 - **Uç nokta paneli**: T₀ⁿ matrisi, XYZ (mm), RPY (ZYX Euler) ve Yoshikawa manipülabilitesi `√det(J·Jᵀ)`; tekilliğe yaklaşınca uyarır.
 - **Çalışma alanı**: limitler içinde 5000 rastgele eklem açısıyla ulaşılan noktalar bulut olarak çizilir. **Uç izi** ucun gittiği yolu çizer.
-- **Hazır robotlar**: UR5, ABB IRB 120, PUMA 560 (standart ve Craig tablosu), Stanford Arm, SCARA, 2R düzlemsel.
+- **Hazır robotlar**: KUKA KR 6 R900 sixx (3B model), UR5, ABB IRB 120, PUMA 560 (standart ve Craig tablosu), Stanford Arm, SCARA, 2R düzlemsel.
 - **Paylaş**: robot ve duruşu link olarak paylaşılır.
 
 <p>
@@ -69,3 +73,9 @@ Kinematik kodu (`src/kinematics/`) three.js'e bağlı olmayan saf JavaScript'tir
 ## GitHub Pages
 
 `.github/workflows/pages.yml` her push'ta test edip `dist/`'i yayınlar. İlk seferde repo ayarlarında **Settings → Pages → Source: GitHub Actions** seçilmeli.
+
+## Lisanslar
+
+KUKA KR 6 R900 sixx meshleri ROS-Industrial [`kuka_experimental`](https://github.com/ros-industrial/kuka_experimental) projesinin `kuka_kr6_support` paketinden değiştirilmeden alınmıştır (Apache License 2.0, bkz. `public/models/kr6/LICENSE.txt`). KUKA, KUKA AG'nin markasıdır; bu proje KUKA ile bağlantılı değildir.
+
+DH açıları: A1, A4 ve A6'da DH eklem değeri KUKA eksen değerinin ters işaretlisidir (DH tablosu z eksenlerini yukarı/ileri seçer).

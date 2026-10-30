@@ -23,7 +23,7 @@ const fromPreset = (p) => ({ presetId: p.id, rows: p.rows.map((r) => ({ ...r }))
 
 function initialRobot() {
   const linked = typeof window !== 'undefined' && decodeRobot(window.location.hash)
-  return linked ? { presetId: 'custom', ...linked } : fromPreset(PRESETS[0])
+  return linked ? { presetId: 'custom', ...linked } : fromPreset(presetById('kr6'))
 }
 
 /** Rough reach of the arm, used to size the camera, joints and arrows. */
@@ -140,7 +140,7 @@ export default function App() {
   const { rows, q, convention, base, presetId } = robot
   const [selected, setSelected] = useState(1)
   const [tab, setTab] = useState('joints')
-  const [show, setShow] = useState({ axes: true, labels: true, params: true, trail: false })
+  const [show, setShow] = useState({ axes: true, labels: true, params: true, trail: false, model: true })
   const [view, setView] = useState('persp')
   const [resetKey, setResetKey] = useState(0)
   const [ik, setIk] = useState({ on: false, mode: 'translate', orientation: true, goal: { m: null, seed: 0 } })
@@ -308,6 +308,8 @@ export default function App() {
         <Canvas shadows camera={{ position: [1.8, 1.4, 1.8], fov: 45, near: 0.01, far: 100 }} dpr={[1, 2]}>
           <Scene
             fk={fk}
+            q={q}
+            model={show.model ? presetById(presetId)?.model : undefined}
             rows={rows}
             convention={convention}
             base={base}
@@ -453,6 +455,11 @@ export default function App() {
           {tab === 'view' && (
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-2">
+                {presetById(presetId)?.model && (
+                  <Toggler pressed={show.model} onChange={(v) => setShow((s) => ({ ...s, model: v }))} icon={Box} title="Gerçek 3B model ya da şematik çizim">
+                    3B model
+                  </Toggler>
+                )}
                 <Toggler pressed={show.axes} onChange={(v) => setShow((s) => ({ ...s, axes: v }))} icon={Axis3d}>
                   Eksenler
                 </Toggler>

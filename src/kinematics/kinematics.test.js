@@ -105,3 +105,20 @@ test('link code: short form and bad input', () => {
   assert.equal(decodeRobot('R,1,2'), null)
   assert.equal(decodeRobot(''), null)
 })
+
+test('KR6: DH frames ride on the URDF links (mesh offsets constant), flange matches', async () => {
+  const { kr6LinkPoses } = await import('./kr6.js')
+  const { invertRigid, multiply } = await import('./mat4.js')
+  const p = presetById('kr6')
+  const offsets = (q) => {
+    const fk = forward(p.rows, q, p.convention)
+    const U = kr6LinkPoses(q)
+    return U.map((u, i) => multiply(invertRigid(fk.frames[i]), u))
+  }
+  const ref = offsets([0, 0, 0, 0, 0, 0])
+  for (let k = 0; k < 20; k++) {
+    const q = p.rows.map((r) => r.min + Math.random() * (r.max - r.min))
+    offsets(q).forEach((o, i) => near(o, ref[i], 1e-9))
+    near(position(forward(p.rows, q, p.convention).tool), position(kr6LinkPoses(q)[6]), 1e-9)
+  }
+})

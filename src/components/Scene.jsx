@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Grid, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
+import { ContactShadows, Environment, Grid, Html, Lightformer, Line, OrbitControls, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { AXIS_COLORS, Axes, Chip, DHOverlay, Robot, toMatrix4 } from './Robot.jsx'
 import { column, position } from '@/kinematics/mat4.js'
@@ -192,7 +192,20 @@ function Workspace({ points }) {
   )
 }
 
-export default function Scene({ fk, rows, convention, base, selected, show, view, resetKey, ik, onGoal, trail, cloud, reach, onFrameDrag, onFrameDragEnd }) {
+/** Studio lighting baked into an environment map (no download): softboxes for clean reflections on paint and metal. */
+function Studio() {
+  return (
+    <Environment resolution={256} frames={1}>
+      <color attach="background" args={['#0b0f16']} />
+      <Lightformer form="rect" intensity={3} position={[0, 5, 0]} rotation-x={Math.PI / 2} scale={[6, 3, 1]} />
+      <Lightformer form="rect" intensity={2} position={[-5, 1.5, 1]} rotation-y={Math.PI / 2} scale={[4, 1.2, 1]} />
+      <Lightformer form="rect" intensity={1.2} position={[5, 1.5, -1]} rotation-y={-Math.PI / 2} scale={[4, 1.2, 1]} color="#bcd6ff" />
+      <Lightformer form="ring" intensity={1.5} position={[0, 2, 5]} scale={2} color="#ffd2a8" />
+    </Environment>
+  )
+}
+
+export default function Scene({ fk, q, rows, convention, base, selected, show, view, resetKey, ik, onGoal, trail, cloud, reach, onFrameDrag, onFrameDragEnd, model }) {
   const scale = Math.min(1.6, Math.max(0.5, reach / 0.8))
   const target = useRef()
   const baseRef = useRef()
@@ -205,6 +218,8 @@ export default function Scene({ fk, rows, convention, base, selected, show, view
       <directionalLight position={[3, 5, 2.5]} intensity={2.4} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-2} shadow-camera-right={2} shadow-camera-top={2} shadow-camera-bottom={-2} />
       <directionalLight position={[-3, 2, -2]} intensity={0.7} color="#9cc4ff" />
       <pointLight position={[0, 2.5, -2.5]} intensity={6} color="#ff8a1f" distance={6} />
+      <Studio />
+      <ContactShadows position={[0, 0.001, 0]} scale={4} resolution={1024} blur={2.4} opacity={0.65} far={1.5} frames={Infinity} />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
         <planeGeometry args={[30, 30]} />
@@ -226,7 +241,7 @@ export default function Scene({ fk, rows, convention, base, selected, show, view
           </mesh>
         )}
         <group position={[0, 0, base]} ref={baseRef}>
-          <Robot fk={fk} rows={rows} selected={selected} showAxes={show.axes} showLabels={show.labels} scale={scale} onAxisGrab={grab} drag={drag} />
+          <Robot fk={fk} q={q} rows={rows} selected={selected} showAxes={show.axes} showLabels={show.labels} scale={scale} onAxisGrab={grab} drag={drag} model={model} />
           {drag && <DragGuide drag={drag} length={reach * 1.5} />}
           {show.params && selected != null && <DHOverlay fk={fk} index={selected} convention={convention} scale={scale} />}
           {show.trail && trail.length > 1 && <Line points={trail} color="#38bdf8" lineWidth={2} />}

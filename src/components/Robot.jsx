@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Edges, Html, Line } from '@react-three/drei'
 import * as THREE from 'three'
 import { position } from '@/kinematics/mat4.js'
@@ -24,6 +24,8 @@ export function Chip({ children, color, className = '' }) {
     </span>
   )
 }
+
+const ModelRobot = lazy(() => import('./ModelRobot.jsx'))
 
 /** Row-major DH matrix → THREE.Matrix4. */
 export const toMatrix4 = (m) => new THREE.Matrix4().set(...m)
@@ -240,7 +242,35 @@ export function DHOverlay({ fk, index, convention, scale }) {
  * Links follow the DH chain frame → mid → next frame; joints sit on their axes.
  * `onAxisGrab(frame, axis, event)` makes the arrows of frames 1…n draggable (frame 0 is the fixed base).
  */
-export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onAxisGrab, drag }) {
+export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onAxisGrab, drag, model, q }) {
+  const schematic = <Schematic fk={fk} rows={rows} selected={selected} scale={scale} />
+  return (
+    <group>
+      {model ? <Suspense fallback={schematic}><ModelRobot q={q} /></Suspense> : schematic}
+      {showAxes &&
+        fk.frames.map((m, i) => {
+          const last = i === fk.frames.length - 1
+          const dragging = drag?.frame === i
+          const highlight = selected == null || i === selected || i === selected + 1 || last || dragging
+          return (
+            <InFrame key={i} m={m}>
+              <Axes
+                size={(last ? 0.14 : 0.1) * scale}
+                label={last ? `O${i} · TCP` : `O${i}`}
+                dim={!highlight}
+                labels={showLabels}
+                onGrab={i > 0 && onAxisGrab ? (axis, e) => onAxisGrab(i, axis, e) : undefined}
+                activeAxis={dragging ? drag.axis : null}
+              />
+            </InFrame>
+          )
+        })}
+    </group>
+  )
+}
+
+/** Links as rods, joints as drums: works for any DH table. */
+function Schematic({ fk, rows, selected, scale }) {
   const pts = fk.frames.map(position)
   const mids = fk.links.map((l) => position(l.mid))
   const rodR = 0.03 * scale
@@ -271,24 +301,6 @@ export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onA
           <Edges color={ACCENT} threshold={20} />
         </mesh>
       </InFrame>
-      {showAxes &&
-        fk.frames.map((m, i) => {
-          const last = i === fk.frames.length - 1
-          const dragging = drag?.frame === i
-          const highlight = selected == null || i === selected || i === selected + 1 || last || dragging
-          return (
-            <InFrame key={i} m={m}>
-              <Axes
-                size={(last ? 0.14 : 0.1) * scale}
-                label={last ? `O${i} · TCP` : `O${i}`}
-                dim={!highlight}
-                labels={showLabels}
-                onGrab={i > 0 && onAxisGrab ? (axis, e) => onAxisGrab(i, axis, e) : undefined}
-                activeAxis={dragging ? drag.axis : null}
-              />
-            </InFrame>
-          )
-        })}
     </group>
   )
 }

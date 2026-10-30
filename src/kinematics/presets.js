@@ -26,6 +26,24 @@ export const PRESETS = [
     home: [0, -90, 90, -90, -90, 0],
   },
   {
+    id: 'kr6',
+    name: 'KUKA KR 6 R900 sixx',
+    description: 'Gerçek 3B model (KR AGILUS), 6 eksen',
+    convention: 'standard',
+    base: 0,
+    model: 'kr6',
+    // z_{i-1} on each URDF joint axis; A1, A4, A6 have the opposite sign of the KUKA axes (see kr6.js).
+    rows: [
+      R(0, 0.4, 0.025, -90, -170, 170),
+      R(0, 0, 0.455, 0, -190, 45),
+      R(-90, 0, 0.035, -90, -120, 156),
+      R(0, 0.42, 0, 90, -185, 185),
+      R(0, 0, 0, -90, -120, 120),
+      R(0, 0.08, 0, 0, -350, 350),
+    ],
+    home: [0, -90, 90, 0, 30, 0],
+  },
+  {
     id: 'irb120',
     name: 'ABB IRB 120',
     description: 'Küçük endüstriyel robot, küresel bilek',

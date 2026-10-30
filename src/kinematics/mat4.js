@@ -27,6 +27,21 @@ export function rotX(t) {
   return [1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 0, 0, 1]
 }
 
+export function rotY(t) {
+  const c = Math.cos(t), s = Math.sin(t)
+  return [c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, 0, 0, 0, 1]
+}
+
+export const translate = (x, y, z) => [1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z, 0, 0, 0, 1]
+
+export function invertRigid(m) {
+  // [R p; 0 1]⁻¹ = [Rᵀ -Rᵀp; 0 1]
+  const r = [m[0], m[4], m[8], m[1], m[5], m[9], m[2], m[6], m[10]]
+  const p = [m[3], m[7], m[11]]
+  const t = [0, 1, 2].map((i) => -(r[i * 3] * p[0] + r[i * 3 + 1] * p[1] + r[i * 3 + 2] * p[2]))
+  return [r[0], r[1], r[2], t[0], r[3], r[4], r[5], t[1], r[6], r[7], r[8], t[2], 0, 0, 0, 1]
+}
+
 export const transZ = (d) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, d, 0, 0, 0, 1]
 export const transX = (a) => [1, 0, 0, a, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 

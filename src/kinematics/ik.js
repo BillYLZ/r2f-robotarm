@@ -20,15 +20,15 @@ export function orientationError(cur, goal) {
  * Geometric Jacobian by finite differences: 6 × n, rows vx vy vz wx wy wz.
  * Columns are per unit of the joint value as the UI uses it (degree or meter), so a step dq can be added directly.
  */
-export function jacobian(rows, q, convention) {
-  const T = endEffector(rows, q, convention)
+export function jacobian(rows, q, convention, tool) {
+  const T = endEffector(rows, q, convention, tool)
   const p = position(T)
   const J = Array.from({ length: 6 }, () => new Array(rows.length).fill(0))
   rows.forEach((row, j) => {
     const h = row.type === 'R' ? 1e-3 : 1e-5
     const qh = q.slice()
     qh[j] += h
-    const Th = endEffector(rows, qh, convention)
+    const Th = endEffector(rows, qh, convention, tool)
     const ph = position(Th)
     const w = orientationError(T, Th)
     for (let k = 0; k < 3; k++) {
@@ -100,20 +100,20 @@ export function manipulability(rows, q, convention) {
 /**
  * Damped least squares IK: dq = Jᵀ (J Jᵀ + λ² I)⁻¹ e, repeated until the tool reaches `goal`.
  * With `orientation` off only the position rows are used, so arms with < 6 joints still reach a point.
- * Joint limits are respected by clamping each step.
+ * Joint limits are respected by clamping each step. `tool` (flange → TCP) makes `goal` the tool tip pose.
  */
-export function solveIK(rows, q0, goal, { convention, orientation = true, iterations = 120, lambda = 0.05, tol = 1e-4 } = {}) {
+export function solveIK(rows, q0, goal, { convention, orientation = true, iterations = 120, lambda = 0.05, tol = 1e-4, tool } = {}) {
   let q = q0.slice()
   const goalP = position(goal)
   let err = Infinity
   for (let it = 0; it < iterations; it++) {
-    const T = endEffector(rows, q, convention)
+    const T = endEffector(rows, q, convention, tool)
     const p = position(T)
     const e = [goalP[0] - p[0], goalP[1] - p[1], goalP[2] - p[2]]
     if (orientation) e.push(...orientationError(T, goal))
     err = Math.hypot(...e)
     if (err < tol) break
-    const J = jacobian(rows, q, convention).slice(0, e.length)
+    const J = jacobian(rows, q, convention, tool).slice(0, e.length)
     // Scale revolute columns to radians so λ means the same for every joint type.
     const Js = J.map((r) => r.map((v, j) => (rows[j].type === 'R' ? v / DEG : v)))
     const A = jjt(Js).map((r, i) => r.map((v, k) => v + (i === k ? lambda * lambda : 0)))

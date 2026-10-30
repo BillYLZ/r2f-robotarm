@@ -63,7 +63,11 @@ export function forward(rows, q, convention = 'standard', base = identity()) {
   return { frames, links, tool: T }
 }
 
-export const endEffector = (rows, q, convention) => forward(rows, q, convention).tool
+/** Flange pose, or the tool tip when a tool transform (flange → TCP) is given. */
+export function endEffector(rows, q, convention, tool) {
+  const T = forward(rows, q, convention).tool
+  return tool ? multiply(T, tool) : T
+}
 
 export const clampJoint = (row, v) => Math.min(row.max, Math.max(row.min, v))
 

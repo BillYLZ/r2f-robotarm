@@ -122,3 +122,19 @@ test('KR6: DH frames ride on the URDF links (mesh offsets constant), flange matc
     near(position(forward(p.rows, q, p.convention).tool), position(kr6LinkPoses(q)[6]), 1e-9)
   }
 })
+
+test('TCP rotation: KR6 keeps the tool tip within 1 mm through the whole program', async () => {
+  const { pivotGoal, toolMatrix, PIVOT_STEPS } = await import('./pivot.js')
+  const p = presetById('kr6')
+  const tool = toolMatrix(0.15)
+  let q = p.home.slice()
+  const start = endEffector(p.rows, q, p.convention, tool)
+  let worst = 0
+  for (let t = 0; t <= PIVOT_STEPS.length; t += 0.01) {
+    const { goal } = pivotGoal(start, Math.min(t, PIVOT_STEPS.length - 1e-9), { tilt: 20, spin: 90 })
+    q = solveIK(p.rows, q, goal, { convention: p.convention, tool, iterations: 40 }).q
+    const tip = position(endEffector(p.rows, q, p.convention, tool))
+    worst = Math.max(worst, Math.hypot(...tip.map((v, k) => v - position(start)[k])))
+  }
+  assert.ok(worst < 1e-3, `tool tip drifted ${(worst * 1000).toFixed(2)} mm`)
+})

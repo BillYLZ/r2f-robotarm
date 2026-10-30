@@ -30,6 +30,9 @@ React Three Fiber + shadcn/ui ile 3B robot kol laboratuvarı: DH tablosunu deği
 - **Çalışma alanı**: limitler içinde 5000 rastgele eklem açısıyla ulaşılan noktalar bulut olarak çizilir. **Uç izi** ucun gittiği yolu çizer.
 - **Hazır robotlar**: KUKA KR 6 R900 sixx (3B model), UR5, ABB IRB 120, PUMA 560 (standart ve Craig tablosu), Stanford Arm, SCARA, 2R düzlemsel.
 - **Paylaş**: robot ve duruşu link olarak paylaşılır.
+- **Tool ve TCP etrafında döndürme**: flanşa uzunluğu ve çapı ayarlanabilen bir tool takılır. **Play** ile robot tool ucunu (TCP) uzayda sabit tutarak tool'u X ve Y etrafında eğer, koni çizdirir ve kendi ekseninde döndürür. Eğim açısı, dönme açısı ve hız ayarlanır; TCP sapması canlı ölçülür (KUKA'da < 0.1 mm).
+- **Açık / koyu tema**: varsayılan açık; sağ alttaki düğmeyle değişir, seçim hatırlanır.
+- **Eklem çapı**: şematik çizimde eklem silindirlerinin çapı Görünüm sekmesinden ayarlanır.
 
 <p>
   <img src="docs/dh-tablosu.png" alt="DH tablosu" width="49%" />

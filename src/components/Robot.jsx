@@ -146,8 +146,8 @@ export function Axes({ size = 0.1, label, dim = false, labels = true, onGrab, ac
 }
 
 /** Joint housing on the joint axis (z of `m`): a drum with accent rings for revolute, a sleeve for prismatic joints. */
-function Joint({ m, type, active, scale }) {
-  const r = 0.055 * scale
+function Joint({ m, type, active, radius }) {
+  const r = radius
   const h = r * 2.2
   const ring = active ? '#38bdf8' : ACCENT
   return (
@@ -250,8 +250,8 @@ export function DHOverlay({ fk, index, convention, scale }) {
  * Links follow the DH chain frame → mid → next frame; joints sit on their axes.
  * `onAxisGrab(frame, axis, event)` makes the arrows of frames 1…n draggable (frame 0 is the fixed base).
  */
-export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onAxisGrab, drag, model, q }) {
-  const schematic = <Schematic fk={fk} rows={rows} selected={selected} scale={scale} />
+export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onAxisGrab, drag, model, q, toolOn, jointD = 0.06 }) {
+  const schematic = <Schematic fk={fk} rows={rows} selected={selected} scale={scale} jointD={jointD} />
   return (
     <group>
       {model ? <Suspense fallback={schematic}><ModelRobot q={q} /></Suspense> : schematic}
@@ -264,7 +264,7 @@ export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onA
             <InFrame key={i} m={m}>
               <Axes
                 size={(last ? 0.14 : 0.1) * scale}
-                label={last ? `O${i} · TCP` : `O${i}`}
+                label={last ? (toolOn ? `O${i} · flanş` : `O${i} · TCP`) : `O${i}`}
                 dim={!highlight}
                 labels={showLabels}
                 onGrab={i > 0 && onAxisGrab ? (axis, e) => onAxisGrab(i, axis, e) : undefined}
@@ -277,11 +277,12 @@ export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onA
   )
 }
 
-/** Links as rods, joints as drums: works for any DH table. */
-function Schematic({ fk, rows, selected, scale }) {
+/** Links as rods, joints as drums of diameter `jointD` (m): works for any DH table. */
+function Schematic({ fk, rows, selected, scale, jointD }) {
   const pts = fk.frames.map(position)
   const mids = fk.links.map((l) => position(l.mid))
-  const rodR = 0.03 * scale
+  const jointR = jointD / 2
+  const rodR = jointR * 0.5
   return (
     <group>
       {/* Base plate under frame 0 */}
@@ -298,7 +299,7 @@ function Schematic({ fk, rows, selected, scale }) {
         <group key={i}>
           <Rod from={pts[i]} to={mids[i]} radius={rodR} color={LINK} />
           <Rod from={mids[i]} to={pts[i + 1]} radius={rodR} color={LINK} />
-          <Joint m={l.axis} type={rows[i].type} active={i === selected} scale={scale} />
+          <Joint m={l.axis} type={rows[i].type} active={i === selected} radius={jointR} />
         </group>
       ))}
       {/* Tool flange */}
@@ -310,5 +311,34 @@ function Schematic({ fk, rows, selected, scale }) {
         </mesh>
       </InFrame>
     </group>
+  )
+}
+
+/**
+ * A straight tool on the flange along its z axis: clamp, steel shank and a tapered tip ending at the TCP.
+ * `m` is the flange pose.
+ */
+export function ToolMesh({ m, length, diameter }) {
+  const r = diameter / 2
+  const parts = [
+    // [z start, z end, radius bottom, radius top, color, metalness, roughness]
+    [0, length * 0.18, r * 1.6, r * 1.6, JOINT, 0.6, 0.4],
+    [length * 0.18, length * 0.78, r, r, '#b9c0c9', 0.9, 0.22],
+    [length * 0.78, length, r, r * 0.08, '#d9dee4', 0.95, 0.15],
+  ]
+  return (
+    <InFrame m={m}>
+      {parts.map(([z0, z1, r0, r1, color, metalness, roughness], i) => (
+        <mesh key={i} position={[0, 0, (z0 + z1) / 2]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          {/* cylinder is along +y: +90° about x points it along +z, so radiusTop is at the far (tip) end */}
+          <cylinderGeometry args={[r1, r0, Math.max(1e-4, z1 - z0), 40]} />
+          <meshStandardMaterial color={color} metalness={metalness} roughness={roughness} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0, length * 0.18]}>
+        <torusGeometry args={[r * 1.6, r * 0.12, 8, 40]} />
+        <meshStandardMaterial color={ACCENT} emissive={ACCENT} emissiveIntensity={0.4} toneMapped={false} />
+      </mesh>
+    </InFrame>
   )
 }

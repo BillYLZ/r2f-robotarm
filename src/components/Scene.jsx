@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { ContactShadows, Environment, Grid, Html, Lightformer, Line, OrbitControls, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { AXIS_COLORS, Axes, Chip, DHOverlay, Robot, toMatrix4 } from './Robot.jsx'
-import { column, position } from '@/kinematics/mat4.js'
+import { AXIS_COLORS, Axes, Chip, DHOverlay, InFrame, Robot, ToolMesh, toMatrix4 } from './Robot.jsx'
+import { column, multiply, position } from '@/kinematics/mat4.js'
+import { toolMatrix } from '@/kinematics/pivot.js'
 import { useSceneTheme } from '@/theme.js'
 
 export const PANEL = 432 // desktop side panel width incl. margin
@@ -180,6 +181,28 @@ function DragGuide({ drag, length }) {
   )
 }
 
+/** Fixed point the tool tip must stay on during the TCP rotation program. */
+function PivotMarker({ p }) {
+  const ring = useMemo(() => {
+    const pts = []
+    for (let k = 0; k <= 48; k++) {
+      const t = (k / 48) * Math.PI * 2
+      pts.push([p[0] + 0.03 * Math.cos(t), p[1] + 0.03 * Math.sin(t), p[2]])
+    }
+    return pts
+  }, [p])
+  return (
+    <group>
+      <mesh position={p} renderOrder={3}>
+        <sphereGeometry args={[0.006, 16, 16]} />
+        <meshBasicMaterial color="#e8434f" depthTest={false} />
+      </mesh>
+      <Line points={ring} color="#e8434f" lineWidth={1.5} depthTest={false} />
+      <Line points={[[p[0], p[1], p[2] - 0.05], [p[0], p[1], p[2] + 0.05]]} color="#e8434f" lineWidth={1} dashed dashSize={0.006} gapSize={0.004} depthTest={false} />
+    </group>
+  )
+}
+
 function Workspace({ points }) {
   const geom = useMemo(() => {
     const g = new THREE.BufferGeometry()
@@ -206,7 +229,7 @@ function Studio({ background }) {
   )
 }
 
-export default function Scene({ fk, q, rows, convention, base, selected, show, view, resetKey, ik, onGoal, trail, cloud, reach, onFrameDrag, onFrameDragEnd, model }) {
+export default function Scene({ fk, q, rows, convention, base, selected, show, view, resetKey, ik, onGoal, trail, cloud, reach, onFrameDrag, onFrameDragEnd, model, tool, pivot }) {
   const scale = Math.min(1.6, Math.max(0.5, reach / 0.8))
   const target = useRef()
   const baseRef = useRef()
@@ -243,7 +266,14 @@ export default function Scene({ fk, q, rows, convention, base, selected, show, v
           </mesh>
         )}
         <group position={[0, 0, base]} ref={baseRef}>
-          <Robot fk={fk} q={q} rows={rows} selected={selected} showAxes={show.axes} showLabels={show.labels} scale={scale} onAxisGrab={grab} drag={drag} model={model} />
+          <Robot fk={fk} q={q} rows={rows} selected={selected} showAxes={show.axes} showLabels={show.labels} scale={scale} onAxisGrab={grab} drag={drag} model={model} toolOn={!!tool} jointD={show.jointD} />
+          {tool && <ToolMesh m={fk.tool} length={tool.length} diameter={tool.diameter} />}
+          {tool && show.axes && (
+            <InFrame m={multiply(fk.tool, toolMatrix(tool.length))}>
+              <Axes size={0.12 * scale} label="TCP" labels={show.labels} />
+            </InFrame>
+          )}
+          {pivot && <PivotMarker p={pivot} />}
           {drag && <DragGuide drag={drag} length={reach * 1.5} />}
           {show.params && selected != null && <DHOverlay fk={fk} index={selected} convention={convention} scale={scale} />}
           {show.trail && trail.length > 1 && <Line points={trail} color="#38bdf8" lineWidth={2} />}

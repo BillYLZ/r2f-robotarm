@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import {
-  Axis3d, Bot, Moon, Sun, Box, Check, ChevronDown, ChevronUp, Crosshair, Dices, Eraser, Eye, Grid3x3, Home, Move3d, PanelLeft, Rotate3d, Ruler, Share2, Sparkles, Spline, Table2, Tag, SlidersHorizontal,
+  Axis3d, Bot, Moon, Sun, Wrench, Box, Check, ChevronDown, ChevronUp, Crosshair, Dices, Eraser, Eye, Grid3x3, Home, Move3d, PanelLeft, Rotate3d, Ruler, Share2, Sparkles, Spline, Table2, Tag, SlidersHorizontal,
 } from 'lucide-react'
 import Scene from './components/Scene.jsx'
 import DHTable, { NumField } from './components/DHTable.jsx'
@@ -11,6 +11,9 @@ import { manipulability, solveIK } from './kinematics/ik.js'
 import { newRow, presetById, PRESETS } from './kinematics/presets.js'
 import { decodeRobot, encodeRobot } from './dhcode.js'
 import { applyTheme, readTheme, ThemeContext } from './theme.js'
+import { pivotGoal, PIVOT_STEPS, toolMatrix } from './kinematics/pivot.js'
+import ToolPanel from './components/ToolPanel.jsx'
+import { multiply } from './kinematics/mat4.js'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -76,9 +79,8 @@ function JointSliders({ rows, q, selected, onSelect, onQ, onLimits }) {
   )
 }
 
-function PosePanel({ fk, w, wRef, ikStatus, ikOn }) {
+function PosePanel({ T, w, wRef, ikStatus, ikOn }) {
   const [open, setOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 768)
-  const T = fk.tool
   const p = position(T)
   const [r, pi, y] = rpy(T).map((v) => (v * 180) / Math.PI)
   const singular = w < wRef * 0.02
@@ -141,7 +143,7 @@ export default function App() {
   const { rows, q, convention, base, presetId } = robot
   const [selected, setSelected] = useState(1)
   const [tab, setTab] = useState('joints')
-  const [show, setShow] = useState({ axes: true, labels: true, params: true, trail: false, model: true })
+  const [show, setShow] = useState({ axes: true, labels: true, params: true, trail: false, model: true, jointD: 0.06 })
   const [view, setView] = useState('persp')
   const [resetKey, setResetKey] = useState(0)
   const [ik, setIk] = useState({ on: false, mode: 'translate', orientation: true, goal: { m: null, seed: 0 } })
@@ -157,8 +159,13 @@ export default function App() {
   }
   const [shared, setShared] = useState(false)
   const tween = useRef(null)
+  const [tool, setTool] = useState({ on: true, length: 0.15, diameter: 0.04, tilt: 20, spin: 90, speed: 1 })
+  const [pivot, setPivot] = useState({ playing: false, t: 0, step: 0, drift: 0, maxDrift: 0, start: null })
+  const pivotRaf = useRef(null)
 
   const fk = useMemo(() => forward(rows, q, convention), [rows, q, convention])
+  const toolM = useMemo(() => (tool.on ? toolMatrix(tool.length) : null), [tool.on, tool.length])
+  const tcp = useMemo(() => (toolM ? multiply(fk.tool, toolM) : fk.tool), [fk, toolM])
   const reach = useMemo(() => reachOf(rows), [rows])
   const w = useMemo(() => manipulability(rows, q, convention), [rows, q, convention])
   // Reference manipulability (at the preset home pose) to judge "close to singular".
@@ -182,9 +189,15 @@ export default function App() {
     })
   }, [fk, show.trail])
 
+  /** Stops any running animation: a MoveJ tween or the TCP rotation program. */
   const stopTween = () => {
     if (tween.current) cancelAnimationFrame(tween.current)
     tween.current = null
+    if (pivotRaf.current) {
+      cancelAnimationFrame(pivotRaf.current)
+      pivotRaf.current = null
+      setPivot((p) => ({ ...p, playing: false }))
+    }
   }
 
   /** Smoothly moves the joints to `target` (joint-space interpolation, like MoveJ). */
@@ -203,6 +216,7 @@ export default function App() {
 
   const structural = (next) => {
     stopTween()
+    setPivot((p) => ({ ...p, t: 0, start: null }))
     setCloud(null)
     setTrail([])
     setRobot((r) => ({ ...r, presetId: 'custom', ...next(r) }))
@@ -210,6 +224,7 @@ export default function App() {
 
   const pickPreset = (id) => {
     stopTween()
+    setPivot((p) => ({ ...p, t: 0, start: null }))
     const p = presetById(id)
     setRobot(fromPreset(p))
     setSelected(Math.min(1, p.rows.length - 1))
@@ -294,6 +309,54 @@ export default function App() {
     return { ok: res.error < 2e-3 }
   }, [])
 
+  const toolRef = useRef(tool)
+  toolRef.current = tool
+
+  const stopPivot = (rewind = false) => {
+    stopTween()
+    if (rewind && pivot.q0) animateTo(pivot.q0, 700)
+    if (rewind) setPivot((p) => ({ ...p, t: 0, start: null }))
+  }
+
+  /**
+   * TCP rotation: every frame the program gives a new tool orientation around the fixed tip,
+   * and inverse kinematics (with the tool transform) finds the joints for it.
+   */
+  const playPivot = () => {
+    stopTween()
+    const r = robotRef.current
+    const tl = toolRef.current
+    const tm = toolMatrix(tl.length)
+    const start = multiply(forward(r.rows, r.q, r.convention).tool, tm)
+    const tip = position(start)
+    let t = 0
+    let maxDrift = 0
+    let last = performance.now()
+    const q0 = r.q.slice()
+    const frame = (now) => {
+      // rAF timestamps can be a little older than performance.now() on the first frame
+      const dt = Math.min(0.05, Math.max(0, (now - last) / 1000))
+      last = now
+      const { speed, tilt, spin } = toolRef.current
+      t = Math.min(PIVOT_STEPS.length, t + (dt * speed) / 4) // 4 s per maneuver at 1×
+      const { goal, step } = pivotGoal(start, Math.min(t, PIVOT_STEPS.length - 1e-9), { tilt, spin })
+      const cur = robotRef.current
+      const res = solveIK(cur.rows, cur.q, goal, { convention: cur.convention, tool: tm, iterations: 30 })
+      const now3 = position(multiply(forward(cur.rows, res.q, cur.convention).tool, tm))
+      const drift = Math.hypot(now3[0] - tip[0], now3[1] - tip[1], now3[2] - tip[2]) * 1000
+      maxDrift = Math.max(maxDrift, drift)
+      robotRef.current = { ...cur, q: res.q }
+      setRobot((x) => ({ ...x, q: res.q }))
+      const done = t >= PIVOT_STEPS.length
+      setPivot({ playing: !done, t, step, drift, maxDrift, start: tip, q0 })
+      pivotRaf.current = done ? null : requestAnimationFrame(frame)
+    }
+    setPivot({ playing: true, t: 0, step: 0, drift: 0, maxDrift: 0, start: tip, q0 })
+    pivotRaf.current = requestAnimationFrame(frame)
+  }
+
+  useEffect(() => () => pivotRaf.current && cancelAnimationFrame(pivotRaf.current), [])
+
   const share = async () => {
     const url = `${window.location.origin}${window.location.pathname}#${encodeRobot(robot)}`
     window.history.replaceState(null, '', url)
@@ -317,6 +380,8 @@ export default function App() {
           <Scene
             fk={fk}
             q={q}
+            tool={tool.on ? tool : null}
+            pivot={pivot.start}
             model={show.model ? presetById(presetId)?.model : undefined}
             rows={rows}
             convention={convention}
@@ -333,7 +398,7 @@ export default function App() {
             reach={reach}
           />
         </Canvas>
-        <PosePanel fk={fk} w={w} wRef={wRef} ikStatus={ikStatus} ikOn={ik.on} />
+        <PosePanel T={tcp} w={w} wRef={wRef} ikStatus={ikStatus} ikOn={ik.on} />
         <Button
           size="icon"
           variant="outline"
@@ -413,7 +478,10 @@ export default function App() {
               <SlidersHorizontal /> Eklemler
             </ToggleGroupItem>
             <ToggleGroupItem value="dh" className="gap-1 text-xs">
-              <Table2 /> DH tablosu
+              <Table2 /> DH
+            </ToggleGroupItem>
+            <ToggleGroupItem value="tool" className="gap-1 text-xs">
+              <Wrench /> Tool
             </ToggleGroupItem>
             <ToggleGroupItem value="view" className="gap-1 text-xs">
               <Eye /> Görünüm
@@ -468,6 +536,10 @@ export default function App() {
 
           {tab === 'dh' && (
             <DHTable rows={rows} convention={convention} selected={selected} onSelect={setSelected} onChange={changeRow} onAdd={addRow} onRemove={removeRow} />
+          )}
+
+          {tab === 'tool' && (
+            <ToolPanel tool={tool} setTool={setTool} pivot={pivot} onPlay={playPivot} onStop={stopPivot} canPivot={tool.on && rows.length >= 6} />
           )}
 
           {tab === 'view' && (
@@ -533,6 +605,12 @@ export default function App() {
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
+              <label className="flex flex-col gap-2 text-xs text-muted-foreground" title="Şematik çizimde eklem silindirlerinin çapı (3B modelde etkisiz)">
+                <span className="flex justify-between">
+                  Eklem çapı <span className="font-mono text-foreground tabular-nums">{Math.round(show.jointD * 1000)} mm</span>
+                </span>
+                <Slider min={0.02} max={0.14} step={0.005} value={[show.jointD]} onValueChange={([v]) => setShow((s) => ({ ...s, jointD: v }))} aria-label="Eklem çapı" />
+              </label>
               <div className="grid grid-cols-[auto_1fr] items-center gap-2 text-xs text-muted-foreground">
                 <span>Taban yüksekliği (m)</span>
                 <NumField value={base} onCommit={(v) => v >= 0 && v <= 3 && setRobot((r) => ({ ...r, base: v }))} aria-label="Taban yüksekliği" />

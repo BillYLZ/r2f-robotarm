@@ -3,25 +3,25 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.145 0.006 285);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.19 0.006 285 / 0.88);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.72 0.17 50);
-  --primary-foreground: oklch(0.18 0.02 50);
-  --secondary: oklch(0.274 0.006 286);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286);
-  --muted-foreground: oklch(0.705 0.015 286);
-  --accent: oklch(0.32 0.03 50);
-  --accent-foreground: oklch(0.9 0.08 55);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.72 0.17 50);
+  --radius: 0.5rem;
+  --background: oklch(0.14 0.012 255);
+  --foreground: oklch(0.96 0.005 250);
+  --card: oklch(0.17 0.014 255 / 0.82);
+  --card-foreground: oklch(0.96 0.005 250);
+  --popover: oklch(0.19 0.016 255);
+  --popover-foreground: oklch(0.96 0.005 250);
+  --primary: oklch(0.74 0.17 52);
+  --primary-foreground: oklch(0.18 0.03 52);
+  --secondary: oklch(0.24 0.016 255);
+  --secondary-foreground: oklch(0.96 0.005 250);
+  --muted: oklch(0.24 0.016 255);
+  --muted-foreground: oklch(0.68 0.02 250);
+  --accent: oklch(0.27 0.03 240);
+  --accent-foreground: oklch(0.9 0.06 230);
+  --destructive: oklch(0.68 0.2 22);
+  --border: oklch(0.8 0.03 240 / 12%);
+  --input: oklch(0.8 0.03 240 / 16%);
+  --ring: oklch(0.74 0.17 52);
 }
 
 @theme inline {
@@ -59,4 +59,19 @@
     @apply h-full overflow-hidden bg-background text-foreground antialiased;
     overscroll-behavior: none;
   }
+}
+
+/* Technical look: hairline grid behind panels, tabular mono numbers. */
+.tech-panel {
+  background-image:
+    linear-gradient(to bottom, oklch(0.8 0.03 240 / 4%) 1px, transparent 1px),
+    linear-gradient(to right, oklch(0.8 0.03 240 / 4%) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.section-label {
+  @apply flex items-center gap-2 font-mono text-[10px] font-medium tracking-[0.14em] text-muted-foreground uppercase;
+}
+.section-label::after {
+  content: '';
+  @apply h-px flex-1 bg-border;
 }

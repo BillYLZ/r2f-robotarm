@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Grid, Line, OrbitControls, TransformControls } from '@react-three/drei'
+import { Grid, Html, Line, OrbitControls, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { Axes, DHOverlay, Robot, toMatrix4 } from './Robot.jsx'
+import { AXIS_COLORS, Axes, Chip, DHOverlay, Robot, toMatrix4 } from './Robot.jsx'
+import { column, position } from '@/kinematics/mat4.js'
 
 export const PANEL = 432 // desktop side panel width incl. margin
 const DURATION = 0.6
@@ -83,6 +84,101 @@ function Target({ goal, onMove, objRef }) {
   )
 }
 
+/**
+ * Dragging a frame along one of its own axes.
+ * The mouse ray is intersected with the plane that contains the axis and faces the camera,
+ * then projected onto the axis: the frame can only slide along the grabbed arrow.
+ */
+function useAxisDrag({ baseRef, fk, onFrameDrag, onFrameDragEnd }) {
+  const { camera, gl, controls } = useThree()
+  const [drag, setDrag] = useState(null)
+  const fkRef = useRef(fk)
+  fkRef.current = fk
+
+  const grab = useCallback(
+    (frame, axis, e) => {
+      const base = baseRef.current
+      if (!base) return
+      const m = fkRef.current.frames[frame]
+      const p0 = position(m)
+      const dir = column(m, axis)
+      base.updateWorldMatrix(true, false)
+      const O = base.localToWorld(new THREE.Vector3(...p0))
+      const D = new THREE.Vector3(...dir).transformDirection(base.matrixWorld)
+      const ray = new THREE.Raycaster()
+      const plane = new THREE.Plane()
+      const hit = new THREE.Vector3()
+
+      const along = (clientX, clientY) => {
+        const rect = gl.domElement.getBoundingClientRect()
+        ray.setFromCamera(new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), camera)
+        // Plane through the axis, turned towards the camera as much as possible.
+        const view = camera.getWorldDirection(new THREE.Vector3())
+        const n = view.sub(D.clone().multiplyScalar(view.dot(D)))
+        if (n.lengthSq() < 1e-8) return null // looking straight down the axis
+        plane.setFromNormalAndCoplanarPoint(n.normalize(), O)
+        if (!ray.ray.intersectPlane(plane, hit)) return null
+        return hit.clone().sub(O).dot(D)
+      }
+
+      const t0 = along(e.nativeEvent.clientX, e.nativeEvent.clientY)
+      if (t0 == null) return
+      if (controls) controls.enabled = false
+      document.body.style.cursor = 'grabbing'
+      setDrag({ frame, axis, p0, dir, delta: 0 })
+
+      const move = (ev) => {
+        const t = along(ev.clientX, ev.clientY)
+        if (t == null) return
+        const delta = t - t0
+        const goal = m.slice()
+        goal[3] = p0[0] + dir[0] * delta
+        goal[7] = p0[1] + dir[1] * delta
+        goal[11] = p0[2] + dir[2] * delta
+        const res = onFrameDrag(frame, goal)
+        setDrag((d) => d && { ...d, delta, ok: res?.ok ?? true })
+      }
+      const up = () => {
+        window.removeEventListener('pointermove', move)
+        window.removeEventListener('pointerup', up)
+        window.removeEventListener('pointercancel', up)
+        if (controls) controls.enabled = true
+        document.body.style.cursor = ''
+        setDrag(null)
+        onFrameDragEnd?.()
+      }
+      window.addEventListener('pointermove', move)
+      window.addEventListener('pointerup', up)
+      window.addEventListener('pointercancel', up)
+    },
+    [baseRef, camera, gl, controls, onFrameDrag, onFrameDragEnd],
+  )
+  return { drag, grab }
+}
+
+/** Thin guide line along the dragged axis with the travelled distance. */
+function DragGuide({ drag, length }) {
+  const { p0, dir, axis, delta, ok = true } = drag
+  const color = AXIS_COLORS[axis]
+  const at = (t) => [p0[0] + dir[0] * t, p0[1] + dir[1] * t, p0[2] + dir[2] * t]
+  return (
+    <group>
+      <Line points={[at(-length), at(length)]} color={color} lineWidth={1} dashed dashSize={0.02} gapSize={0.012} transparent opacity={0.8} depthTest={false} />
+      <mesh position={p0} renderOrder={3}>
+        <sphereGeometry args={[0.008, 12, 12]} />
+        <meshBasicMaterial color={color} depthTest={false} />
+      </mesh>
+      <Html position={at(delta)} center zIndexRange={[30, 20]} className="pointer-events-none select-none">
+        <Chip color={ok ? color : '#ff6b6b'} className="relative -top-5 text-[11px] font-semibold">
+          {'XYZ'[axis]}
+          {drag.frame} {delta >= 0 ? '+' : '−'}
+          {Math.abs(delta * 1000).toFixed(1)} mm{ok ? '' : ' · ulaşılamıyor'}
+        </Chip>
+      </Html>
+    </group>
+  )
+}
+
 function Workspace({ points }) {
   const geom = useMemo(() => {
     const g = new THREE.BufferGeometry()
@@ -96,22 +192,28 @@ function Workspace({ points }) {
   )
 }
 
-export default function Scene({ fk, rows, convention, base, selected, show, view, resetKey, ik, onGoal, trail, cloud, reach }) {
+export default function Scene({ fk, rows, convention, base, selected, show, view, resetKey, ik, onGoal, trail, cloud, reach, onFrameDrag, onFrameDragEnd }) {
   const scale = Math.min(1.6, Math.max(0.5, reach / 0.8))
   const target = useRef()
+  const baseRef = useRef()
+  const { drag, grab } = useAxisDrag({ baseRef, fk, onFrameDrag, onFrameDragEnd })
   return (
     <>
-      <color attach="background" args={['#0f0f12']} />
-      <fog attach="fog" args={['#0f0f12', 6, 16]} />
-      <hemisphereLight args={['#dfe7ff', '#202024', 0.9]} />
-      <directionalLight position={[3, 5, 2.5]} intensity={2.2} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-2} shadow-camera-right={2} shadow-camera-top={2} shadow-camera-bottom={-2} />
-      <directionalLight position={[-3, 2, -2]} intensity={0.5} />
+      <color attach="background" args={['#090c11']} />
+      <fog attach="fog" args={['#090c11', 5, 14]} />
+      <hemisphereLight args={['#dbe8ff', '#0d1117', 0.8]} />
+      <directionalLight position={[3, 5, 2.5]} intensity={2.4} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-2} shadow-camera-right={2} shadow-camera-top={2} shadow-camera-bottom={-2} />
+      <directionalLight position={[-3, 2, -2]} intensity={0.7} color="#9cc4ff" />
+      <pointLight position={[0, 2.5, -2.5]} intensity={6} color="#ff8a1f" distance={6} />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
         <planeGeometry args={[30, 30]} />
-        <shadowMaterial opacity={0.35} />
+        <shadowMaterial opacity={0.45} />
       </mesh>
-      <Grid infiniteGrid cellSize={0.1} sectionSize={1} cellColor="#27272a" sectionColor="#52525b" sectionThickness={1} fadeDistance={12} fadeStrength={1.5} />
+      <Grid infiniteGrid cellSize={0.05} cellThickness={0.5} sectionSize={0.5} sectionThickness={0.9} cellColor="#16202c" sectionColor="#234565" fadeDistance={10} fadeStrength={2} />
+      {/* World axes on the floor: DH x (red) and y (green); three.js z = -DH y */}
+      <Line points={[[0, 0.0005, 0], [0.6, 0.0005, 0]]} color={AXIS_COLORS[0]} lineWidth={1} transparent opacity={0.45} />
+      <Line points={[[0, 0.0005, 0], [0, 0.0005, -0.6]]} color={AXIS_COLORS[1]} lineWidth={1} transparent opacity={0.45} />
 
       <CameraRig view={view} resetKey={resetKey} reach={reach} height={base + reach * 0.35} />
 
@@ -120,11 +222,12 @@ export default function Scene({ fk, rows, convention, base, selected, show, view
         {base > 0 && (
           <mesh position={[0, 0, base / 2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
             <cylinderGeometry args={[0.09 * scale, 0.12 * scale, base, 32]} />
-            <meshStandardMaterial color="#3f3f46" metalness={0.4} roughness={0.6} />
+            <meshStandardMaterial color="#1d2229" metalness={0.6} roughness={0.45} />
           </mesh>
         )}
-        <group position={[0, 0, base]}>
-          <Robot fk={fk} rows={rows} convention={convention} selected={selected} showAxes={show.axes} showLabels={show.labels} scale={scale} />
+        <group position={[0, 0, base]} ref={baseRef}>
+          <Robot fk={fk} rows={rows} selected={selected} showAxes={show.axes} showLabels={show.labels} scale={scale} onAxisGrab={grab} drag={drag} />
+          {drag && <DragGuide drag={drag} length={reach * 1.5} />}
           {show.params && selected != null && <DHOverlay fk={fk} index={selected} convention={convention} scale={scale} />}
           {show.trail && trail.length > 1 && <Line points={trail} color="#38bdf8" lineWidth={2} />}
           {cloud && <Workspace points={cloud} />}

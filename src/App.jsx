@@ -82,10 +82,10 @@ function PosePanel({ fk, w, wRef, ikStatus, ikOn }) {
   const [r, pi, y] = rpy(T).map((v) => (v * 180) / Math.PI)
   const singular = w < wRef * 0.02
   return (
-    <div className="pointer-events-auto absolute top-3 right-3 z-30 w-[min(calc(100%-1.5rem),18rem)] rounded-xl border bg-card p-3 text-xs shadow-lg backdrop-blur md:top-4 md:right-4">
+    <div className="pointer-events-auto tech-panel absolute top-3 right-3 z-30 w-[min(calc(100%-1.5rem),18rem)] rounded-xl border bg-card p-3 text-xs shadow-2xl shadow-black/40 backdrop-blur-md md:top-4 md:right-4">
       <button type="button" className="flex w-full items-center justify-between font-medium" onClick={() => setOpen((o) => !o)}>
         <span className="flex items-center gap-1.5">
-          <Crosshair className="size-4 text-primary" /> Uç nokta (T₀ⁿ)
+          <Crosshair className="size-4 text-primary" /> <span className="font-mono text-[11px] tracking-[0.12em] uppercase">TCP · T₀ⁿ</span>
         </span>
         {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
       </button>
@@ -271,6 +271,22 @@ export default function App() {
     [ik.orientation],
   )
 
+  /**
+   * Dragging frame `frame` along one of its axes: inverse kinematics on the joints before it (1…frame).
+   * For the tool of a ≥ 6 joint arm the orientation is held, so the TCP slides without turning.
+   */
+  const onFrameDrag = useCallback((frame, goal) => {
+    stopTween()
+    const r = robotRef.current
+    const sub = r.rows.slice(0, frame)
+    const orientation = frame === r.rows.length && r.rows.length >= 6
+    const res = solveIK(sub, r.q.slice(0, frame), goal, { convention: r.convention, orientation, iterations: 40, tol: 2e-4 })
+    const q = [...res.q, ...r.q.slice(frame)]
+    robotRef.current = { ...r, q }
+    setRobot((cur) => ({ ...cur, q }))
+    return { ok: res.error < 2e-3 }
+  }, [])
+
   const share = async () => {
     const url = `${window.location.origin}${window.location.pathname}#${encodeRobot(robot)}`
     window.history.replaceState(null, '', url)
@@ -301,6 +317,7 @@ export default function App() {
             resetKey={resetKey}
             ik={ik}
             onGoal={onGoal}
+            onFrameDrag={onFrameDrag}
             trail={trail}
             cloud={cloud}
             reach={reach}
@@ -319,15 +336,21 @@ export default function App() {
       </div>
 
       <Card
-        className={`gap-4 overflow-y-auto rounded-none rounded-t-xl border-x-0 border-b-0 py-4 backdrop-blur md:absolute md:top-4 md:left-4 md:max-h-[calc(100%-2rem)] md:w-104 md:rounded-xl md:border md:py-5 ${
+        className={`tech-panel gap-4 overflow-y-auto rounded-none rounded-t-xl border-x-0 border-b-0 py-4 shadow-2xl shadow-black/40 backdrop-blur-md md:absolute md:top-4 md:left-4 md:max-h-[calc(100%-2rem)] md:w-104 md:rounded-xl md:border md:py-5 ${
           panelOpen ? 'max-h-[55%]' : 'hidden md:flex'
         }`}
       >
         <CardHeader className="hidden md:grid">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Bot className="size-5 text-primary" /> Robot Kol · DH
+          <CardTitle className="flex items-center gap-2.5">
+            <span className="grid size-8 place-items-center rounded-md border border-primary/40 bg-primary/10">
+              <Bot className="size-4.5 text-primary" />
+            </span>
+            <span className="flex flex-col">
+              <span className="font-mono text-sm tracking-[0.12em] uppercase">Robot Kol // DH</span>
+              <span className="font-mono text-[10px] font-normal tracking-wider text-muted-foreground">KİNEMATİK LAB · v0.2</span>
+            </span>
           </CardTitle>
-          <CardDescription>DH tablosunu değiştir, eksenleri ve kolu 3B izle.</CardDescription>
+          <CardDescription className="text-xs">DH tablosunu değiştir, eksenleri sürükle, kolu 3B izle.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 px-4 md:px-6">
           <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -459,7 +482,7 @@ export default function App() {
                 </Button>
               </div>
               <div className="flex flex-col gap-2">
-                <span className="text-xs font-medium text-muted-foreground">Kamera</span>
+                <span className="section-label">Kamera</span>
                 <ToggleGroup
                   type="single"
                   variant="outline"
@@ -496,7 +519,7 @@ export default function App() {
           <p className="hidden text-[11px] text-muted-foreground md:block">
             <span className="text-red-400">X</span> <span className="text-green-400">Y</span> <span className="text-blue-400">Z</span> eksenleri; seçili satırın{' '}
             <span className="text-yellow-300">θ</span>, <span className="text-cyan-300">d</span>, <span className="text-fuchsia-400">a</span>,{' '}
-            <span className="text-lime-400">α</span> değerleri sahnede çizilir. Sol tık döndürür, sağ tık kaydırır, tekerlek yakınlaştırır.
+            <span className="text-lime-400">α</span> değerleri sahnede çizilir. <span className="text-foreground">Bir eksen okunu tutup sürükle</span>: o frame sadece o ok yönünde kayar (uçta yönelim korunur). Boşluğa sol tık döndürür, sağ tık kaydırır, tekerlek yakınlaştırır.
           </p>
         </CardContent>
       </Card>

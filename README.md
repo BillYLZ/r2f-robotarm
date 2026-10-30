@@ -7,7 +7,7 @@ React Three Fiber + shadcn/ui ile 3B robot kol laboratuvarı: DH tablosunu deği
 **https://billylz.github.io/r3f-robotarm/**
 
 <p>
-  <img src="docs/ik.png" alt="UR5, ters kinematik hedefi" width="68%" />
+  <img src="docs/eksen-surukle.png" alt="UR5, TCP Z ekseni boyunca sürükleniyor" width="68%" />
   <img src="docs/mobile.png" alt="Telefon görünümü" width="28%" />
 </p>
 
@@ -17,7 +17,8 @@ React Three Fiber + shadcn/ui ile 3B robot kol laboratuvarı: DH tablosunu deği
 - **Standart / Modified (Craig) DH** geçişi:
   - Standart: `Aᵢ = Rz(θᵢ)·Tz(dᵢ)·Tx(aᵢ)·Rx(αᵢ)`
   - Modified: `Aᵢ = Rx(αᵢ₋₁)·Tx(aᵢ₋₁)·Rz(θᵢ)·Tz(dᵢ)`
-- **Eksenler**: her frame'de RGB = XYZ okları ve `O0 … On` etiketleri; seçili eklemin iki frame'i öne çıkar, diğerleri soluklaşır.
+- **Eksenler**: her frame'de ince RGB = XYZ okları ve `O0 … On` etiketleri; seçili eklemin iki frame'i öne çıkar, diğerleri soluklaşır.
+- **Eksenden tut, sürükle**: herhangi bir frame'in X, Y veya Z okunu tut; fare nereye giderse gitsin frame sadece o okun doğrultusunda kayar (ok üzerinde kesikli kılavuz çizgi ve mm cinsinden yol). Önceki eklemler ters kinematikle ayarlanır; 6 eksenli kolun ucunda (TCP) yönelim korunur, yani uç dönmeden düz kayar.
 - **DH ölçüleri sahnede**: seçili satırın θ yayı (sarı), d uzunluğu (camgöbeği), a uzunluğu (pembe) ve α yayı (yeşil), tam etki ettikleri yerde çizilir.
 - **Eklem sliderları**: döner eklemde derece, prizmatikte metre; eklem değeri tablodaki θ veya d ofsetine eklenir. Seçili eklemin limitleri düzenlenebilir.
 - **Ters kinematik**: kırmızı hedefi sürükle (taşı / döndür), kol Damped Least Squares ile takip eder. 6 eksende hem konum hem yönelim, daha azında yalnız konum.

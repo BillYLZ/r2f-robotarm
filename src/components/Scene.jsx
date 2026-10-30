@@ -230,7 +230,7 @@ function Studio({ background }) {
   )
 }
 
-export default function Scene({ fk, q, rows, convention, base, selected, show, view, resetKey, ik, onGoal, trail, cloud, reach, onFrameDrag, onFrameDragEnd, model, tool, pivot }) {
+export default function Scene({ fk, q, rows, convention, base, selected, show, view, resetKey, ik, onGoal, trail, cloud, reach, onFrameDrag, onFrameDragEnd, model, tool, pivot, onSelect }) {
   const scale = Math.min(1.6, Math.max(0.5, reach / 0.8))
   const target = useRef()
   const baseRef = useRef()
@@ -258,7 +258,7 @@ export default function Scene({ fk, q, rows, convention, base, selected, show, v
           </mesh>
         )}
         <group position={[0, 0, base]} ref={baseRef}>
-          <Robot fk={fk} q={q} rows={rows} selected={selected} showAxes={show.axes} showLabels={show.labels} scale={scale} onAxisGrab={grab} drag={drag} model={model} toolOn={!!tool} jointD={show.jointD} />
+          <Robot fk={fk} q={q} rows={rows} selected={selected} showAxes={show.axes} showLabels={show.labels} scale={scale} onAxisGrab={grab} drag={drag} model={model} toolOn={!!tool} jointD={show.jointD} onSelect={onSelect} />
           {tool && <ToolMesh m={fk.tool} length={tool.length} diameter={tool.diameter} />}
           {tool && show.axes && (
             <InFrame m={multiply(fk.tool, toolMatrix(tool.length))}>

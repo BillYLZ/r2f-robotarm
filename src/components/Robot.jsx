@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { Edges, Html, Line } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { position } from '@/kinematics/mat4.js'
 import { useSceneTheme } from '@/theme.js'
@@ -250,11 +251,18 @@ export function DHOverlay({ fk, index, convention, scale }) {
  * Links follow the DH chain frame → mid → next frame; joints sit on their axes.
  * `onAxisGrab(frame, axis, event)` makes the arrows of frames 1…n draggable (frame 0 is the fixed base).
  */
-export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onAxisGrab, drag, model, q, toolOn, jointD = 0.06 }) {
-  const schematic = <Schematic fk={fk} rows={rows} selected={selected} scale={scale} jointD={jointD} />
+export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onAxisGrab, drag, model, q, toolOn, jointD = 0.06, onSelect }) {
+  const schematic = <Schematic fk={fk} rows={rows} selected={selected} scale={scale} jointD={jointD} onSelect={onSelect} />
   return (
     <group>
-      {model ? <Suspense fallback={schematic}><ModelRobot q={q} /></Suspense> : schematic}
+      {model ? (
+        <Suspense fallback={schematic}>
+          <ModelRobot q={q} selected={selected} onSelect={onSelect} />
+        </Suspense>
+      ) : (
+        schematic
+      )}
+      {selected != null && fk.links[selected] && <JointAxisGlow m={fk.links[selected].axis} length={0.22 * scale} />}
       {showAxes &&
         fk.frames.map((m, i) => {
           const last = i === fk.frames.length - 1
@@ -278,7 +286,7 @@ export function Robot({ fk, rows, selected, showAxes, showLabels, scale = 1, onA
 }
 
 /** Links as rods, joints as drums of diameter `jointD` (m): works for any DH table. */
-function Schematic({ fk, rows, selected, scale, jointD }) {
+function Schematic({ fk, rows, selected, scale, jointD, onSelect }) {
   const pts = fk.frames.map(position)
   const mids = fk.links.map((l) => position(l.mid))
   const jointR = jointD / 2
@@ -296,11 +304,11 @@ function Schematic({ fk, rows, selected, scale, jointD }) {
         <meshBasicMaterial color={ACCENT} toneMapped={false} />
       </mesh>
       {fk.links.map((l, i) => (
-        <group key={i}>
-          <Rod from={pts[i]} to={mids[i]} radius={rodR} color={LINK} />
-          <Rod from={mids[i]} to={pts[i + 1]} radius={rodR} color={LINK} />
+        <Pickable key={i} onPick={onSelect && (() => onSelect(i))}>
+          <Rod from={pts[i]} to={mids[i]} radius={rodR} color={i === selected ? '#9fd4f5' : LINK} />
+          <Rod from={mids[i]} to={pts[i + 1]} radius={rodR} color={i === selected ? '#9fd4f5' : LINK} />
           <Joint m={l.axis} type={rows[i].type} active={i === selected} radius={jointR} />
-        </group>
+        </Pickable>
       ))}
       {/* Tool flange */}
       <InFrame m={fk.tool}>
@@ -339,6 +347,55 @@ export function ToolMesh({ m, length, diameter }) {
         <torusGeometry args={[r * 1.6, r * 0.12, 8, 40]} />
         <meshStandardMaterial color={ACCENT} emissive={ACCENT} emissiveIntensity={0.4} toneMapped={false} />
       </mesh>
+    </InFrame>
+  )
+}
+
+/** Click a part of the arm to select the joint that moves it; pointer cursor on hover. */
+export function Pickable({ onPick, children }) {
+  if (!onPick) return <group>{children}</group>
+  return (
+    <group
+      onClick={(e) => {
+        e.stopPropagation()
+        if (e.delta > 4) return // the pointer moved: that was a camera drag, not a click
+        onPick()
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation()
+        document.body.style.cursor = 'pointer'
+      }}
+      onPointerOut={() => (document.body.style.cursor = '')}
+    >
+      {children}
+    </group>
+  )
+}
+
+const GLOW = '#38bdf8'
+
+/** The selected joint's rotation / slide axis (z of `m`) drawn as a pulsing light line with a ring. */
+function JointAxisGlow({ m, length }) {
+  const mat = useMemo(() => new THREE.MeshBasicMaterial({ color: GLOW, transparent: true, depthTest: false, toneMapped: false }), [])
+  const halo = useMemo(() => new THREE.MeshBasicMaterial({ color: GLOW, transparent: true, opacity: 0.25, depthTest: false, toneMapped: false }), [])
+  useFrame(({ clock }) => {
+    const k = 0.5 + 0.5 * Math.sin(clock.elapsedTime * 4)
+    mat.opacity = 0.65 + 0.35 * k
+    halo.opacity = 0.12 + 0.2 * k
+  })
+  return (
+    <InFrame m={m}>
+      <mesh rotation={[Math.PI / 2, 0, 0]} material={mat} renderOrder={4}>
+        <cylinderGeometry args={[length * 0.012, length * 0.012, length * 2, 12]} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]} material={halo} renderOrder={3}>
+        <cylinderGeometry args={[length * 0.04, length * 0.04, length * 2, 16]} />
+      </mesh>
+      {[-1, 1].map((sgn) => (
+        <mesh key={sgn} position={[0, 0, sgn * length * 0.55]} material={mat} renderOrder={4}>
+          <torusGeometry args={[length * 0.22, length * 0.012, 8, 48]} />
+        </mesh>
+      ))}
     </InFrame>
   )
 }

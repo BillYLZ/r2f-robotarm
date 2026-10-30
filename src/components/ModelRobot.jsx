@@ -3,7 +3,7 @@ import { useLoader } from '@react-three/fiber'
 import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js'
 import * as THREE from 'three'
 import { KR6_MESHES, kr6LinkPoses } from '@/kinematics/kr6.js'
-import { InFrame } from './Robot.jsx'
+import { InFrame, Pickable } from './Robot.jsx'
 
 const url = (name) => `${import.meta.env.BASE_URL}models/kr6/${name}.dae`
 
@@ -89,7 +89,14 @@ function useMaterials() {
       bumpMap: noise,
       bumpScale: 0.5,
     })
-    return { paint, dark }
+    // Selected link: same paint with a soft blue glow.
+    const picked = paint.clone()
+    picked.emissive = new THREE.Color('#38bdf8')
+    picked.emissiveIntensity = 0.35
+    const pickedDark = dark.clone()
+    pickedDark.emissive = picked.emissive
+    pickedDark.emissiveIntensity = 0.5
+    return { paint, dark, picked, pickedDark }
   }, [])
 }
 
@@ -97,19 +104,22 @@ function useMaterials() {
  * KUKA KR 6 R900 sixx drawn from its real visual meshes (ROS-Industrial, Apache-2.0).
  * Link poses come from the URDF chain, driven by the same DH joint values as the rest of the app.
  */
-export default function ModelRobot({ q }) {
+export default function ModelRobot({ q, selected, onSelect }) {
   const daes = useLoader(ColladaLoader, KR6_MESHES.map(url))
   const geometries = useMemo(() => daes.map(bakeGeometries), [daes])
-  const { paint, dark } = useMaterials()
+  const { paint, dark, picked, pickedDark } = useMaterials()
   const poses = useMemo(() => kr6LinkPoses(q), [q])
   return (
     <group>
       {geometries.map((gs, i) => (
-        <InFrame key={KR6_MESHES[i]} m={poses[i]}>
-          {gs.map((g, k) => (
-            <mesh key={k} geometry={g} material={i === 0 || i === 6 ? dark : paint} castShadow receiveShadow />
-          ))}
-        </InFrame>
+        // link_i is moved by joint i (DH row i − 1); the base has no joint
+        <Pickable key={KR6_MESHES[i]} onPick={i > 0 && onSelect ? () => onSelect(i - 1) : undefined}>
+          <InFrame m={poses[i]}>
+            {gs.map((g, k) => (
+              <mesh key={k} geometry={g} material={i === 0 || i === 6 ? (i - 1 === selected ? pickedDark : dark) : i - 1 === selected ? picked : paint} castShadow receiveShadow />
+            ))}
+          </InFrame>
+        </Pickable>
       ))}
     </group>
   )

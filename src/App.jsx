@@ -407,6 +407,7 @@ export default function App() {
             ik={ik}
             onGoal={onGoal}
             onFrameDrag={onFrameDrag}
+            onSelect={setSelected}
             trail={trail}
             cloud={cloud}
             reach={reach}

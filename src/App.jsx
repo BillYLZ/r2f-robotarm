@@ -173,7 +173,7 @@ export default function App() {
   const toggleTheme = () => changeTheme(theme === 'dark' ? 'light' : 'dark')
   const [shared, setShared] = useState(false)
   const tween = useRef(null)
-  const [tool, setTool] = useState({ on: true, length: 0.15, diameter: 0.04, tilt: 20, spin: 90, speed: 1 })
+  const [tool, setTool] = useState({ on: true, length: 0.1, diameter: 0.005, tilt: 20, spin: 90, speed: 1 })
   const [pivot, setPivot] = useState({ playing: false, t: 0, step: 0, drift: 0, maxDrift: 0, start: null })
   const pivotRaf = useRef(null)
 

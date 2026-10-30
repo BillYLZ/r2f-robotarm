@@ -17,7 +17,7 @@ React Three Fiber + shadcn/ui ile 3B robot kol laboratuvarı: DH tablosunu deği
 
 - **Gerçek 3B robot**: KUKA KR 6 R900 sixx (KR AGILUS) üreticinin CAD tabanlı görsel meshleriyle çizilir; boya clearcoat'lu fiziksel malzeme, ince portakal kabuğu dokusu, stüdyo ışıklı yansımalar ve yumuşak temas gölgesi. DH tablosu bu robotun URDF eksenlerine birebir oturtuldu, eksen sürükleme ve IK model üzerinde de çalışır. Görünüm → **3B model** ile şematik çizime geçilebilir.
 
-- **DH tablosu düzenleyici**: satır ekle/sil, her eklem döner (**R**) ya da prizmatik (**P**), θ d a α hücreleri canlı.
+- **DH tablosu düzenleyici**: satır ekle/sil, her eklem döner (**R**) ya da prizmatik (**P**), θ d a α hücreleri canlı. Fare tekerleği bir kutunun üzerindeyken değeri değiştirir: uzunluklar ±0.01 m, açılar ±1° (Shift ile ÷10, Ctrl ile ×10).
 - **Standart / Modified (Craig) DH** geçişi:
   - Standart: `Aᵢ = Rz(θᵢ)·Tz(dᵢ)·Tx(aᵢ)·Rx(αᵢ)`
   - Modified: `Aᵢ = Rx(αᵢ₋₁)·Tx(aᵢ₋₁)·Rz(θᵢ)·Tz(dᵢ)`

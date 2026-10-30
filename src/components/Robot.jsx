@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { Edges, Html, Line } from '@react-three/drei'
 import * as THREE from 'three'
 import { position } from '@/kinematics/mat4.js'
+import { useSceneTheme } from '@/theme.js'
 
 export const AXIS_COLORS = ['#ff4d5e', '#3ddc84', '#4c8dff']
 export const PARAM_COLORS = { theta: '#facc15', d: '#22d3ee', a: '#e879f9', alpha: '#a3e635' }
@@ -13,12 +14,18 @@ const ACCENT = '#ff8a1f'
 const EDGE = '#0b0e13'
 const BASE = '#1d2229'
 
-/** Small mono label chip used in the scene. */
+/**
+ * Small mono label chip used in the scene. Plain chips follow the theme;
+ * colored ones (DH values, drag readout) stay dark so yellow/cyan text keeps its contrast.
+ */
 export function Chip({ children, color, className = '' }) {
+  const look = color
+    ? 'border-white/10 bg-[#0a0d12]/85'
+    : 'border-black/10 bg-white/90 text-slate-700 shadow-sm dark:border-white/10 dark:bg-[#0a0d12]/85 dark:text-[#cfe3ff] dark:shadow-none'
   return (
     <span
-      className={`rounded-[3px] border border-white/10 bg-[#0a0d12]/85 px-1 py-px font-mono text-[10px] leading-none tracking-tight whitespace-nowrap ${className}`}
-      style={{ color: color || '#cfe3ff' }}
+      className={`rounded-[3px] border px-1 py-px font-mono text-[10px] leading-none tracking-tight whitespace-nowrap ${look} ${className}`}
+      style={color ? { color } : undefined}
     >
       {children}
     </span>
@@ -117,11 +124,12 @@ function Arrow({ size, color, dim, active, onGrab }) {
  * `onGrab(axis, event)` makes every arrow draggable; `activeAxis` highlights the one being dragged.
  */
 export function Axes({ size = 0.1, label, dim = false, labels = true, onGrab, activeAxis = null }) {
+  const { origin } = useSceneTheme()
   return (
     <group>
       <mesh renderOrder={2}>
         <sphereGeometry args={[size * 0.035, 12, 12]} />
-        <meshBasicMaterial color="#e6edf7" transparent opacity={dim ? 0.3 : 1} depthTest={false} />
+        <meshBasicMaterial color={origin} transparent opacity={dim ? 0.3 : 1} depthTest={false} />
       </mesh>
       {AXIS_ROT.map((rot, i) => (
         <group key={i} rotation={rot}>

@@ -73,7 +73,7 @@ export default function DHTable({ rows, convention, selected, onSelect, onChange
         <span>#</span>
         <span title="R: döner, P: prizmatik">tip</span>
         {order.map((k) => (
-          <span key={k} className="text-right font-medium" style={{ color: PARAM_COLORS[head[k][1]] }} title={head[k][3]}>
+          <span key={k} className="param-tint text-right font-medium" style={{ color: PARAM_COLORS[head[k][1]] }} title={head[k][3]}>
             {head[k][0]} <span className="text-muted-foreground">{head[k][2]}</span>
           </span>
         ))}

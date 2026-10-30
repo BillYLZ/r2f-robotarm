@@ -4,6 +4,27 @@
 
 :root {
   --radius: 0.5rem;
+  --background: oklch(0.965 0.006 250);
+  --foreground: oklch(0.22 0.02 255);
+  --card: oklch(0.995 0.002 250 / 0.86);
+  --card-foreground: oklch(0.22 0.02 255);
+  --popover: oklch(0.995 0.002 250);
+  --popover-foreground: oklch(0.22 0.02 255);
+  --primary: oklch(0.66 0.19 46);
+  --primary-foreground: oklch(0.99 0.01 60);
+  --secondary: oklch(0.93 0.008 250);
+  --secondary-foreground: oklch(0.25 0.02 255);
+  --muted: oklch(0.93 0.008 250);
+  --muted-foreground: oklch(0.5 0.025 255);
+  --accent: oklch(0.92 0.025 235);
+  --accent-foreground: oklch(0.3 0.06 245);
+  --destructive: oklch(0.58 0.22 25);
+  --border: oklch(0.3 0.03 255 / 13%);
+  --input: oklch(0.3 0.03 255 / 18%);
+  --ring: oklch(0.66 0.19 46);
+}
+
+.dark {
   --background: oklch(0.14 0.012 255);
   --foreground: oklch(0.96 0.005 250);
   --card: oklch(0.17 0.014 255 / 0.82);
@@ -74,4 +95,12 @@
 .section-label::after {
   content: '';
   @apply h-px flex-1 bg-border;
+}
+
+/* DH colors are tuned for dark backgrounds; deepen them on light. */
+.param-tint {
+  filter: brightness(0.72) saturate(1.5);
+}
+.dark .param-tint {
+  filter: none;
 }

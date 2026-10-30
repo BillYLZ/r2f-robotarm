@@ -4,6 +4,7 @@ import { ContactShadows, Environment, Grid, Html, Lightformer, Line, OrbitContro
 import * as THREE from 'three'
 import { AXIS_COLORS, Axes, Chip, DHOverlay, Robot, toMatrix4 } from './Robot.jsx'
 import { column, position } from '@/kinematics/mat4.js'
+import { useSceneTheme } from '@/theme.js'
 
 export const PANEL = 432 // desktop side panel width incl. margin
 const DURATION = 0.6
@@ -193,10 +194,10 @@ function Workspace({ points }) {
 }
 
 /** Studio lighting baked into an environment map (no download): softboxes for clean reflections on paint and metal. */
-function Studio() {
+function Studio({ background }) {
   return (
-    <Environment resolution={256} frames={1}>
-      <color attach="background" args={['#0b0f16']} />
+    <Environment key={background} resolution={256} frames={1}>
+      <color attach="background" args={[background]} />
       <Lightformer form="rect" intensity={3} position={[0, 5, 0]} rotation-x={Math.PI / 2} scale={[6, 3, 1]} />
       <Lightformer form="rect" intensity={2} position={[-5, 1.5, 1]} rotation-y={Math.PI / 2} scale={[4, 1.2, 1]} />
       <Lightformer form="rect" intensity={1.2} position={[5, 1.5, -1]} rotation-y={-Math.PI / 2} scale={[4, 1.2, 1]} color="#bcd6ff" />
@@ -210,25 +211,26 @@ export default function Scene({ fk, q, rows, convention, base, selected, show, v
   const target = useRef()
   const baseRef = useRef()
   const { drag, grab } = useAxisDrag({ baseRef, fk, onFrameDrag, onFrameDragEnd })
+  const t = useSceneTheme()
   return (
     <>
-      <color attach="background" args={['#090c11']} />
-      <fog attach="fog" args={['#090c11', 5, 14]} />
-      <hemisphereLight args={['#dbe8ff', '#0d1117', 0.8]} />
+      <color attach="background" args={[t.background]} />
+      <fog attach="fog" args={[t.background, 5, 14]} />
+      <hemisphereLight args={t.hemi} />
       <directionalLight position={[3, 5, 2.5]} intensity={2.4} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-2} shadow-camera-right={2} shadow-camera-top={2} shadow-camera-bottom={-2} />
       <directionalLight position={[-3, 2, -2]} intensity={0.7} color="#9cc4ff" />
       <pointLight position={[0, 2.5, -2.5]} intensity={6} color="#ff8a1f" distance={6} />
-      <Studio />
-      <ContactShadows position={[0, 0.001, 0]} scale={4} resolution={1024} blur={2.4} opacity={0.65} far={1.5} frames={Infinity} />
+      <Studio background={t.studio} />
+      <ContactShadows position={[0, 0.001, 0]} scale={4} resolution={1024} blur={2.4} opacity={t.contact} far={1.5} frames={Infinity} />
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]} receiveShadow>
         <planeGeometry args={[30, 30]} />
-        <shadowMaterial opacity={0.45} />
+        <shadowMaterial opacity={t.shadow} />
       </mesh>
-      <Grid infiniteGrid cellSize={0.05} cellThickness={0.5} sectionSize={0.5} sectionThickness={0.9} cellColor="#16202c" sectionColor="#234565" fadeDistance={10} fadeStrength={2} />
+      <Grid infiniteGrid cellSize={0.05} cellThickness={0.5} sectionSize={0.5} sectionThickness={0.9} cellColor={t.cell} sectionColor={t.section} fadeDistance={10} fadeStrength={2} />
       {/* World axes on the floor: DH x (red) and y (green); three.js z = -DH y */}
-      <Line points={[[0, 0.0005, 0], [0.6, 0.0005, 0]]} color={AXIS_COLORS[0]} lineWidth={1} transparent opacity={0.45} />
-      <Line points={[[0, 0.0005, 0], [0, 0.0005, -0.6]]} color={AXIS_COLORS[1]} lineWidth={1} transparent opacity={0.45} />
+      <Line points={[[0, 0.0005, 0], [0.6, 0.0005, 0]]} color={AXIS_COLORS[0]} lineWidth={1} transparent opacity={t.floorAxes} />
+      <Line points={[[0, 0.0005, 0], [0, 0.0005, -0.6]]} color={AXIS_COLORS[1]} lineWidth={1} transparent opacity={t.floorAxes} />
 
       <CameraRig view={view} resetKey={resetKey} reach={reach} height={base + reach * 0.35} />
 

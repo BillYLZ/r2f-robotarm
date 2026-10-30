@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import {
-  Axis3d, Bot, Box, Check, ChevronDown, ChevronUp, Crosshair, Dices, Eraser, Eye, Grid3x3, Home, Move3d, PanelLeft, Rotate3d, Ruler, Share2, Sparkles, Spline, Table2, Tag, SlidersHorizontal,
+  Axis3d, Bot, Moon, Sun, Box, Check, ChevronDown, ChevronUp, Crosshair, Dices, Eraser, Eye, Grid3x3, Home, Move3d, PanelLeft, Rotate3d, Ruler, Share2, Sparkles, Spline, Table2, Tag, SlidersHorizontal,
 } from 'lucide-react'
 import Scene from './components/Scene.jsx'
 import DHTable, { NumField } from './components/DHTable.jsx'
@@ -10,6 +10,7 @@ import { position, rpy } from './kinematics/mat4.js'
 import { manipulability, solveIK } from './kinematics/ik.js'
 import { newRow, presetById, PRESETS } from './kinematics/presets.js'
 import { decodeRobot, encodeRobot } from './dhcode.js'
+import { applyTheme, readTheme, ThemeContext } from './theme.js'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -148,6 +149,12 @@ export default function App() {
   const [trail, setTrail] = useState([])
   const [cloud, setCloud] = useState(null)
   const [panelOpen, setPanelOpen] = useState(true)
+  const [theme, setTheme] = useState(readTheme)
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    applyTheme(next)
+    setTheme(next)
+  }
   const [shared, setShared] = useState(false)
   const tween = useRef(null)
 
@@ -303,6 +310,7 @@ export default function App() {
   const preset = presetById(presetId)
 
   return (
+    <ThemeContext.Provider value={theme}>
     <div className="relative flex h-full flex-col md:block">
       <div className="relative min-h-0 flex-1 md:absolute md:inset-0">
         <Canvas shadows camera={{ position: [1.8, 1.4, 1.8], fov: 45, near: 0.01, far: 100 }} dpr={[1, 2]}>
@@ -326,6 +334,16 @@ export default function App() {
           />
         </Canvas>
         <PosePanel fk={fk} w={w} wRef={wRef} ikStatus={ikStatus} ikOn={ik.on} />
+        <Button
+          size="icon"
+          variant="outline"
+          className="absolute right-3 bottom-3 size-11 rounded-full bg-card backdrop-blur md:right-4 md:bottom-4"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç'}
+          title={theme === 'dark' ? 'Açık tema' : 'Koyu tema'}
+        >
+          {theme === 'dark' ? <Sun className="size-5" /> : <Moon className="size-5" />}
+        </Button>
         <Button
           size="icon"
           variant={panelOpen ? 'outline' : 'default'}
@@ -524,12 +542,13 @@ export default function App() {
 
           <Separator className="hidden md:block" />
           <p className="hidden text-[11px] text-muted-foreground md:block">
-            <span className="text-red-400">X</span> <span className="text-green-400">Y</span> <span className="text-blue-400">Z</span> eksenleri; seçili satırın{' '}
-            <span className="text-yellow-300">θ</span>, <span className="text-cyan-300">d</span>, <span className="text-fuchsia-400">a</span>,{' '}
-            <span className="text-lime-400">α</span> değerleri sahnede çizilir. <span className="text-foreground">Bir eksen okunu tutup sürükle</span>: o frame sadece o ok yönünde kayar (uçta yönelim korunur). Boşluğa sol tık döndürür, sağ tık kaydırır, tekerlek yakınlaştırır.
+            <span className="text-red-600 dark:text-red-400">X</span> <span className="text-green-600 dark:text-green-400">Y</span> <span className="text-blue-600 dark:text-blue-400">Z</span> eksenleri; seçili satırın{' '}
+            <span className="text-yellow-600 dark:text-yellow-300">θ</span>, <span className="text-cyan-600 dark:text-cyan-300">d</span>, <span className="text-fuchsia-600 dark:text-fuchsia-400">a</span>,{' '}
+            <span className="text-lime-600 dark:text-lime-400">α</span> değerleri sahnede çizilir. <span className="text-foreground">Bir eksen okunu tutup sürükle</span>: o frame sadece o ok yönünde kayar (uçta yönelim korunur). Boşluğa sol tık döndürür, sağ tık kaydırır, tekerlek yakınlaştırır.
           </p>
         </CardContent>
       </Card>
     </div>
+    </ThemeContext.Provider>
   )
 }
